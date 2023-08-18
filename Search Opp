@@ -1,0 +1,96 @@
+//Aura Component to Search Opportunity and display List
+//Component
+<aura:component controller="MyOpportunityListController" implements="flexipage:availableForAllPageTypes">
+    
+    <aura:attribute name="lstOpportunity" type="opportunity[]"/>
+    <aura:attribute name="columsToDisplay" type="List"/>
+    <aura:attribute name="searchKeyword" type="String"/>
+    <aura:attribute name="newMessage" type="String" default="Hello There!!"/>
+    
+    <aura:handler name="init" value="{!this}" action="{!c.doInit}"/>
+
+    <!--Search bboc-->
+    <lightning:card iconname="standard:opportunity" title="opportunity List">
+        <h2>{!v.newMessage}</h2>
+        <lightning:layout>
+        	<lightning:layoutItem size="3" padding="around_small">
+            	<lightning:input aura:id="searchField"
+                                 label="Opportunity Name"
+                                 value="{!v.searchKeyword}"
+                                 placeholder="Search Opportunities"
+                                 onchange="{!c.searchOpportunities}"/>
+            </lightning:layoutItem>
+        </lightning:layout>
+    	
+        <lightning:datatable data="{!v.lstOpportunity}"
+                             columns="{!v.columsToDisplay}"
+                             keyField= "id"
+                             hideCheckboxColumn="true"/>
+        <p>Ends</p>
+                             
+    
+    </lightning:card>
+	
+</aura:component>
+
+
+--------------------------------------------------------------------------------------------------------------------
+//Controller
+({
+	doInit : function(component, event, helper) {
+        component.set("v.columsToDisplay", [
+            {label: "Opportunity Name", fieldName: "Name", type:"text"},
+            {label: "Account Name", fieldName: "AccountId", type:"text"},
+            {label: "Close Date", fieldName: "CloseDate", type:"date"},
+            {label: "Amount", fieldName: "Amount", type:"currency"},
+        ]);
+        helper.fetchOppHelper(null, component);
+	},
+    
+    searchOpportunities: function(component, event, helper) {
+        var searchValue = component.find("searchField").get("v.value");
+            console.log('The seach value is ' + searchValue);
+        helper.fetchOppHelper(searchValue, component);
+    }
+})
+
+----------------------------------------------------------------------------------------------------------------------
+//Helper
+({
+	fetchOppHelper : function(searchVal, component) {
+       
+            var action = component.get("c.fetchOpportunity");
+            action.setParams({
+            	"searchKeyword": searchVal
+            });
+            
+            action.setCallback(this, function(response){
+                var state = response.getState();
+                if(state == "SUCCESS") {
+                	component.set("v.lstOpportunity", response.getReturnValue());
+            console.log('The values of Opp is ' + JSON.stringify(response.getReturnValue()));
+                } else {
+                	alert("An error occured while fetching the data");
+                }
+            });
+            $A.enqueueAction(action);
+	}
+})
+------------------------------------------------------------------------------------------------------------------------
+//Apex Contoller
+public class MyOpportunityListController {
+    @AuraEnabled
+    public static List<Opportunity> fetchOpportunity(String searchKeyword) {
+        List<Opportunity> returnList  = new List<Opportunity>();
+        
+        String searchKey = String.isBlank(searchKeyword) ? '%%' : searchKeyword + '%';
+        
+        returnList = [SELECT Id, Name, AccountId, CloseDate, Amount FROM
+                     Opportunity WHERE Name LIKE : searchKey LIMIT 15];
+        
+        System.debug('values are ' + returnList);
+        
+        return returnList;
+    }
+
+}
